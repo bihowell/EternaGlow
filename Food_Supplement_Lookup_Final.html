@@ -1,0 +1,230 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food & Supplement Lookup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #3B265F;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      background-color: white;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    button {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #219150;
+    }
+    #results {
+      margin-top: 20px;
+    }
+    .label-box {
+      border: 1px solid #ccc;
+      padding: 15px;
+      background-color: #fdfdfd;
+      border-radius: 6px;
+      margin-top: 15px;
+    }
+    .label-box h4 {
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 5px;
+    }
+    .label-box ul {
+      list-style: none;
+      padding: 0;
+    }
+    .label-box li {
+      margin-bottom: 6px;
+    }
+    .highlight {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    #loading {
+      display: none;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top-color: #27ae60;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Food & Supplement Lookup</h1>
+    <p>Find detailed nutrition information about foods and supplements</p>
+  </header>
+
+  <div class="container">
+    <h2>Search for a Food or Supplement</h2>
+    <input type="text" id="searchInput" list="foodSuggestions" placeholder="Enter food or supplement name (optional)...">
+    <datalist id="foodSuggestions"></datalist>
+    <input type="text" id="brandInput" list="brandSuggestions" placeholder="Enter brand name (optional)...">
+    <datalist id="brandSuggestions"></datalist>
+    <select id="groupFilter">
+      <option value="">Filter by food group (optional)</option>
+      <option value="vegetable">Vegetables</option>
+      <option value="fruit">Fruits</option>
+      <option value="grain">Grains</option>
+      <option value="meat">Meat</option>
+      <option value="seafood">Seafood</option>
+      <option value="legume">Legumes</option>
+      <option value="dairy">Dairy</option>
+    </select>
+    <select id="micronutrientFilter">
+      <option value="">Filter by micronutrient (optional)</option>
+      <option value="Calories">Calories</option>
+      <option value="Protein">Protein</option>
+      <option value="Saturated Fat">Saturated Fat</option>
+      <option value="Sugars">Sugars</option>
+      <option value="Sodium">Sodium</option>
+      <option value="Calcium">Calcium</option>
+      <option value="Iron">Iron</option>
+      <option value="Magnesium">Magnesium</option>
+      <option value="Potassium">Potassium</option>
+      <option value="Vitamin C">Vitamin C</option>
+      <option value="Vitamin D">Vitamin D</option>
+      <option value="Vitamin B12">Vitamin B12</option>
+    </select>
+    <label><input type="checkbox" id="strictMatch"> Strict name match</label>
+    <div class="search-row">
+      <button onclick="searchItem(1)">Search</button>
+      <div id="spinner" class="spinner" style="display:none;"></div>
+    </div>
+
+    <div id="loading">Loading results, please wait...</div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', async () => {
+      const val = searchInput.value;
+      if (val.length < 3) return;
+      try {
+        const res = await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(val)}&pageSize=10&api_key=dJfxIAnRRvgMTr1V1S5x5eo1WVCk6oYO7l2ywkKP`);
+        const data = await res.json();
+        const datalist = document.getElementById('foodSuggestions');
+        datalist.innerHTML = '';
+        const brandDatalist = document.getElementById('brandSuggestions');
+        brandDatalist.innerHTML = '';
+        data.foods?.forEach(food => {
+          const option = document.createElement('option');
+          option.value = food.description;
+          datalist.appendChild(option);
+
+          if (food.brandOwner) {
+            const brandOption = document.createElement('option');
+            brandOption.value = food.brandOwner;
+            brandDatalist.appendChild(brandOption);
+          }
+        });
+      } catch (e) {
+        console.error('Autocomplete error:', e);
+      }
+    });
+
+    async function searchItem(page = 1) {
+      const query = document.getElementById('searchInput').value;
+      const brand = document.getElementById('brandInput').value;
+      const group = document.getElementById('groupFilter').value;
+      const micronutrient = document.getElementById('micronutrientFilter').value;
+      const strict = document.getElementById('strictMatch').checked;
+      const resultsContainer = document.getElementById('results');
+      const spinner = document.getElementById('spinner');
+
+      resultsContainer.innerHTML = '';
+      spinner.style.display = 'inline-block';
+
+      let url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=10&pageNumber=${page}&api_key=dJfxIAnRRvgMTr1V1S5x5eo1WVCk6oYO7l2ywkKP`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        let results = data.foods || [];
+
+        if (strict && query) {
+          results = results.filter(food => food.description.toLowerCase().includes(query.toLowerCase()));
+        }
+
+        if (results.length === 0) {
+          resultsContainer.innerHTML = '<p>No matching results found for your query.</p>';
+          return;
+        }
+
+        results.forEach(food => {
+          const box = document.createElement('div');
+          box.className = 'label-box';
+          box.innerHTML = `
+            <h4>${food.description}</h4>
+            <p><strong>Brand:</strong> ${food.brandOwner || 'N/A'}</p>
+            <ul>
+              <li><span class="highlight">Calories:</span> ${food.foodNutrients?.find(n => n.nutrientName === 'Energy')?.value || 'N/A'} kcal</li>
+              <li><span class="highlight">Protein:</span> ${food.foodNutrients?.find(n => n.nutrientName === 'Protein')?.value || 'N/A'} g</li>
+              <li><span class="highlight">Saturated Fat:</span> ${food.foodNutrients?.find(n => n.nutrientName === 'Fatty acids, total saturated')?.value || 'N/A'} g</li>
+              <li><span class="highlight">Sugars:</span> ${food.foodNutrients?.find(n => n.nutrientName === 'Sugars, Total')?.value || 'N/A'} g</li>
+              <li><span class="highlight">Sodium:</span> ${food.foodNutrients?.find(n => n.nutrientName === 'Sodium, Na')?.value || 'N/A'} mg</li>
+            </ul>
+          `;
+          resultsContainer.appendChild(box);
+        });
+      } catch (error) {
+        console.error('Search error:', error);
+        resultsContainer.innerHTML = '<p>Error fetching data. Please try again later.</p>';
+      } finally {
+        spinner.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
